@@ -8,31 +8,31 @@
 #define UART_RX_PIN 9
 
 typedef struct {
-    uint8_t hour;          ///< GMT hours
-    uint8_t minute;        ///< GMT minutes
-    uint8_t seconds;       ///< GMT seconds
-    uint16_t milliseconds; ///< GMT milliseconds
-    uint8_t year;          ///< GMT year
-    uint8_t month;         ///< GMT month
-    uint8_t day;           ///< GMT day
+    uint8_t hour;          // GMT hours
+    uint8_t minute;        // GMT minutes
+    uint8_t seconds;       // GMT seconds
+    uint16_t milliseconds; // GMT milliseconds
+    uint8_t year;          // GMT year
+    uint8_t month;         // GMT month
+    uint8_t day;           // GMT day
 
-    float latitude;        ///< Floating point latitude value in degrees/minutes
-    float longitude;       ///< Floating point longitude value in degrees/minutes
+    float latitude;        // Floating point latitude value in degrees/minutes
+    float longitude;       // Floating point longitude value in degrees/minutes
 
-    int32_t latitude_fixed;  ///< Fixed point latitude in decimal degrees. Divide by 10000000.0 to get a double.
-    int32_t longitude_fixed; ///< Fixed point longitude in decimal degrees. Divide by 10000000.0 to get a double.
+    int32_t latitude_fixed;  // Fixed point latitude in decimal degrees. Divide by 10000000.0 to get a double.
+    int32_t longitude_fixed; // Fixed point longitude in decimal degrees. Divide by 10000000.0 to get a double.
 
-    float latitudeDegrees;  ///< Latitude in decimal degrees
-    float longitudeDegrees; ///< Longitude in decimal degrees
-    float geoidheight;      ///< Difference between geoid height and WGS84 height
-    float altitude;         ///< Altitude in meters above MSL
+    float latitudeDegrees;  // Latitude in decimal degrees
+    float longitudeDegrees; // Longitude in decimal degrees
+    float geoidheight;      // Difference between geoid height and WGS84 height
+    float altitude;         // Altitude in meters above MSL
     float speed;            ///< Current speed over ground in knots
     float angle;            ///< Course in degrees from true north
 
-    char lat;               ///< N/S
-    char lon;               ///< E/W
-    char mag;               ///< Magnetic variation direction
-    bool fix;               ///< GPS fix
+    char lat;               // N / S
+    char lon;               // E / W
+    bool fix;               // GPS fix
+    int satellites_in_view; // Satellies in view
 } GPS_Data;
 
 // Initialize a GPS_Data instance with default values
@@ -56,17 +56,55 @@ GPS_Data gps_data_default = {
     .angle = 0.0,
     .lat = 'X',
     .lon = 'X',
-    .mag = 'X',
-    .fix = false
+    .fix = false,
+    .satellites_in_view = 0
 };
+
+
+bool is_valid_nmea_sentence(const char *sentence) {
+    // Check if the sentence starts with '$' and ends with '\r\n'
+    if (sentence[0] != '$' || strlen(sentence) != 82 || sentence[strlen(sentence) - 2] != '\r' || sentence[strlen(sentence) - 1] != '\n') {
+        return false;
+    }
+
+    // Calculate and verify the checksum
+    int checksum = 0;
+    for (int i = 1; sentence[i] != '*' && sentence[i] != '\0'; ++i) {
+        checksum ^= sentence[i];
+    }
+
+    // Get the checksum value from the sentence
+    int sentence_checksum;
+    if (sscanf(sentence, "%*[^*]*%x", &sentence_checksum) != 1) {
+        return false; // Error extracting the checksum
+    }
+
+    return checksum == sentence_checksum;
+}
 
 // Function to print GPS data
 void print_gps_data(const GPS_Data *data) {
     // Print each field of the GPS_Data structure
     printf("Time: %02d:%02d:%02d.%03d\n", data->hour, data->minute, data->seconds, data->milliseconds);
-    printf("Latitude: %.6f %c\n", data->latitudeDegrees, data->lat);
-    printf("Longitude: %.6f %c\n", data->longitudeDegrees, data->lon);
-    // Add similar lines for other fields
+
+    // Print Latitude in Degrees/Minutes format
+    printf("Latitude (Degrees/Minutes): %.4f %c\n", data->latitude, data->lat);
+
+    // Print Longitude in Degrees/Minutes format
+    printf("Longitude (Degrees/Minutes): %.4f %c\n", data->longitude, data->lon);
+
+    // Print Latitude in Decimal Degrees format
+    printf("Latitude (Decimal Degrees): %.6f %c\n", data->latitudeDegrees, data->lat);
+
+    // Print Longitude in Decimal Degrees format
+    printf("Longitude (Decimal Degrees): %.6f %c\n", data->longitudeDegrees, data->lon);
+
+    printf("Altitude: %.2f meters\n", data->altitude);
+    printf("Speed: %.2f knots\n", data->speed);
+    printf("Course: %.2f degrees\n", data->angle);
+
+    // Print number of satellites
+    printf("Satellites in view: %d\n", data->satellites_in_view);
 
     // Example: Print fix status
     if (data->fix) {
@@ -95,7 +133,7 @@ int main() {
     
     while (1) {
    
-        // Read data from the Neo M8N
+        // Read data from the GPS
         char data = uart_getc(UART_ID);
 
         // Print the received data
