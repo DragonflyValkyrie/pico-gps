@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "hardware/uart.h"
+#include <string.h>
 
 #define UART_ID uart1
 #define BAUD_RATE 9600
@@ -63,7 +64,7 @@ GPS_Data gps_data_default = {
 
 bool is_valid_nmea_sentence(const char *sentence) {
     // Check if the sentence starts with '$' and ends with '\r\n'
-    if (sentence[0] != '$' || strlen(sentence) != 82 || sentence[strlen(sentence) - 2] != '\r' || sentence[strlen(sentence) - 1] != '\n') {
+    if (sentence[0] != '$' || strlen(sentence) > 83 || sentence[strlen(sentence) - 2] != '\r' || sentence[strlen(sentence) - 1] != '\n') {
         return false;
     }
 
@@ -80,6 +81,28 @@ bool is_valid_nmea_sentence(const char *sentence) {
     }
 
     return checksum == sentence_checksum;
+}
+
+void parse_GPGGA(const char *sentence, GPS_Data *data) {
+    // Assuming a valid GPGGA sentence format: $GPGGA,hhmmss.sss,llll.lll,a,yyyyy.yyy,b,xx,yy.y,x.x,x.x,M,x.x,M,x.x,xxxx*hh\r\n
+
+    // Parse the sentence using sscanf
+    int result = sscanf(sentence, "$GPGGA,%2hhu%2hhu%2hhu.%3hu,%f,%c,%f,%c,%*d,%*d,%*f,%d", 
+                        &data->hour, &data->minute, &data->seconds, &data->milliseconds,
+                        &data->latitude, &data->lat, &data->longitude, &data->lon,
+                        &data->satellites_in_view);
+
+    // Calculate decimal degrees for latitude and longitude
+    data->latitudeDegrees = (int)data->latitude / 100 + (data->latitude - (int)data->latitude) / 60;
+    data->longitudeDegrees = (int)data->longitude / 100 + (data->longitude - (int)data->longitude) / 60;
+
+    // Adjust latitude and longitude based on N/S and E/W indicators
+    if (data->lat == 'S') {
+        data->latitudeDegrees = -data->latitudeDegrees;
+    }
+    if (data->lon == 'W') {
+        data->longitudeDegrees = -data->longitudeDegrees;
+    }
 }
 
 // Function to print GPS data
@@ -113,36 +136,43 @@ void print_gps_data(const GPS_Data *data) {
         printf("Fix: No\n");
     }
 }
-
 int main() {   
-    
-    // Configure for all NMEA sentences to be printed, page 12 https://cdn-shop.adafruit.com/datasheets/PMTK_A11.pdf
     const char configurations[] = "$PMTK314,1,1,1,1,1,5,0,0,0,0,0,0,0,0,0,0,0,0,0*2C\r\n";
 
     stdio_init_all();
 
-    // Set up UART with a baud rate
     uart_init(UART_ID, BAUD_RATE);
     gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
     gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
     uart_set_hw_flow(UART_ID, false, false);
 
-    // Send the configuration to the GPS
     uart_puts(UART_ID, configurations);
 
-    
+    char sentence_buffer[256];  // Adjust the size as needed
+    int sentence_index = 0;
+
     while (1) {
-   
-        // Read data from the GPS
         char data = uart_getc(UART_ID);
 
-        // Print the received data
-        printf("%c", data);
+        // Store the received character in the buffer
+        sentence_buffer[sentence_index++] = data;
 
         // Check for the end of a line (newline character)
         if (data == '\n') {
-            // Add a newline character to visually separate NMEA sentences
-            printf("\n");
+            // Null-terminate the buffer to make it a valid string
+            sentence_buffer[sentence_index] = '\0';
+
+            printf(sentence_buffer);
+
+            // Process the NMEA sentence
+            if (is_valid_nmea_sentence(sentence_buffer)) {
+                GPS_Data data;
+                parse_GPGGA(sentence_buffer, &data);
+                print_gps_data(&data);
+            }
+
+            // Reset the buffer for the next sentence
+            sentence_index = 0;
         }
     }
 
