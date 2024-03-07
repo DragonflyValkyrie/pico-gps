@@ -8,16 +8,20 @@ The .vscode is from the Raspberry Pi Foundation Pico Examples to set up the eniv
 
 ## To build
 
-```mkdir build
+```
+mkdir build
 cd build
 cmake ..
-make```
+make
+```
 
 ## Pin out
 
-```5v-->VIN
+```
+5v-->VIN
 Tx-->Rx
 Rx-->Tx
-GND-->GND```
+GND-->GND
+```
 
 Tx and Rx pins used were 8 and 9 respectively
