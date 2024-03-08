@@ -64,7 +64,7 @@ GPS_Data gps_data_default = {
 
 bool is_valid_nmea_sentence(const char *sentence) {
     // Check if the sentence starts with '$' and ends with '\r\n'
-    if (sentence[0] != '$' || strlen(sentence) > 83 || sentence[strlen(sentence) - 2] != '\r' || sentence[strlen(sentence) - 1] != '\n') {
+    if (sentence[0] != '$' || sentence[strlen(sentence) - 2] != '\r' || sentence[strlen(sentence) - 1] != '\n') {
         return false;
     }
 
@@ -86,11 +86,11 @@ bool is_valid_nmea_sentence(const char *sentence) {
 void parse_GPGGA(const char *sentence, GPS_Data *data) {
     // Assuming a valid GPGGA sentence format: $GPGGA,hhmmss.sss,llll.lll,a,yyyyy.yyy,b,xx,yy.y,x.x,x.x,M,x.x,M,x.x,xxxx*hh\r\n
 
-    // Parse the sentence using sscanf
-    int result = sscanf(sentence, "$GPGGA,%2hhu%2hhu%2hhu.%3hu,%f,%c,%f,%c,%*d,%*d,%*f,%d", 
+    // Parse the sentence using sscanf, skipping fields related to HDOP, geoidal separation, and age of DGPS data
+    int result = sscanf(sentence, "$GPGGA,%2hhu%2hhu%2hhu.%3hu,%f,%c,%f,%c,%1hhu,%d,,,,*%2hhx",
                         &data->hour, &data->minute, &data->seconds, &data->milliseconds,
                         &data->latitude, &data->lat, &data->longitude, &data->lon,
-                        &data->satellites_in_view);
+                        &data->fix, &data->satellites_in_view);
 
     // Calculate decimal degrees for latitude and longitude
     data->latitudeDegrees = (int)data->latitude / 100 + (data->latitude - (int)data->latitude) / 60;
@@ -103,6 +103,32 @@ void parse_GPGGA(const char *sentence, GPS_Data *data) {
     if (data->lon == 'W') {
         data->longitudeDegrees = -data->longitudeDegrees;
     }
+}
+
+void parse_GPGLL(const char *sentence, GPS_Data *data) {
+
+
+}
+
+void parse_GPVTG(const char *sentence, GPS_Data *data) {
+
+
+}
+
+void parse_GPRMC(const char *sentence, GPS_Data *data) {
+
+
+}
+
+void parse_GPGSA(const char *sentence, GPS_Data *data) {
+
+
+}
+
+void parse_GPSV(const char *sentence, GPS_Data *data) {
+
+
+
 }
 
 // Function to print GPS data
@@ -136,6 +162,7 @@ void print_gps_data(const GPS_Data *data) {
         printf("Fix: No\n");
     }
 }
+
 int main() {   
     const char configurations[] = "$PMTK314,1,1,1,1,1,5,0,0,0,0,0,0,0,0,0,0,0,0,0*2C\r\n";
 
