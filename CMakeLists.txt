@@ -18,12 +18,12 @@ add_executable(pico-gps
         pico-gps.c
         )
 
-# pull in common dependencies
+# Pull in common dependencies
 target_link_libraries(pico-gps pico_stdlib)
 
-# create map/bin/hex file etc.
+# Create map/bin/hex file etc.
 pico_add_extra_outputs(pico-gps)
 
-# create map/bin/hex/uf2 file etc.
+# Create map/bin/hex/uf2 file etc.
 pico_add_extra_outputs(pico-gps)
 
