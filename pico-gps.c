@@ -116,6 +116,10 @@ void parse_GPGGA(const char *sentence, GPS_Data *data) {
                         &data->fix, &data->satellites_in_view);
 
     convert_coords_to_decimal(data);
+
+    int fix_type;
+
+    data->fix = (fix_type == 1 || fix_type == 2); // 1 or 2 means a valid fix
 }
 
 void parse_GPGLL(const char *sentence, GPS_Data *data) {
@@ -157,17 +161,6 @@ void parse_GPRMC(const char *sentence, GPS_Data *data) {
     data->fix = (fix_indicator == 'A') ? true : false;
 
     convert_coords_to_decimal(data);
-}
-
-void parse_GPGSA(const char *sentence, GPS_Data *data) {
-
-
-}
-
-void parse_GPGSV(const char *sentence, GPS_Data *data) {
-
-
-
 }
 
 // Function to print GPS data
@@ -232,12 +225,12 @@ int main() {
             // Null-terminate the buffer to make it a valid string
             sentence_buffer[sentence_index] = '\0';
 
-printf(sentence_buffer);
+            printf(sentence_buffer);
 
             // Process the NMEA sentence
             if (is_valid_nmea_sentence(sentence_buffer)) {
-                if (strncmp(sentence_buffer, "$GPGSA", 6) == 0) {
-                    parse_GPGSA(sentence_buffer, &gps_data_default);
+                if (strncmp(sentence_buffer, "$GPGGA", 6) == 0) {
+                    parse_GPGGA(sentence_buffer, &gps_data_default);
                     print_gps_data(&gps_data_default);
                 }
             }
